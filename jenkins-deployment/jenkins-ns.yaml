@@ -1,0 +1,8 @@
+---
+# separate name space for automation control
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: auto-ns
+  labels:
+    name: auto-ns
