@@ -1,41 +1,28 @@
 ############ standard GKE cluster ###########     gcloud container clusters get-credentials my_gke_cluster
 
-resource "google_container_cluster" "my-gke-cluster" {
-  name               = "my-gke-cluster"
+resource "google_container_cluster" "gke-cluster" {
+  name               = "gke-cluster"
   location           = "us-central1"
 
   remove_default_node_pool = true
-  initial_node_count = 2
-  
-  networking_mode = "VPC_NATIVE"
+  initial_node_count = 1
+  default_max_pods_per_node = 10
+ 
   network    = google_compute_network.main-network.id
-  subnetwork = google_compute_subnetwork.restricted-sub.id
+  subnetwork = google_compute_subnetwork.cluster-sub.id
 
   node_locations = [
         "us-central1-a"
   ]
-  addons_config {
-        http_load_balancing{
-            disabled = false
-        }
-        horizontal_pod_autoscaling{
-            disabled = true
-        }
-        network_policy_config{
-            disabled = false
-        }
-  }
-  release_channel {
-        channel = "REGULAR"
-  }
+ 
+  
   workload_identity_config {
         workload_pool = "iti-1-366311.svc.id.goog"
   }
-    
 
   ip_allocation_policy {
     cluster_secondary_range_name  = "services-range"
-    services_secondary_range_name = google_compute_subnetwork.restricted-sub.secondary_ip_range.1.range_name
+    services_secondary_range_name = google_compute_subnetwork.cluster-sub.secondary_ip_range.1.range_name
   }
   master_authorized_networks_config {
         cidr_blocks {
@@ -54,8 +41,8 @@ resource "google_container_cluster" "my-gke-cluster" {
 resource "google_container_node_pool" "primary_nodes" {
   name       = "my-node-pool"
   location   = "us-central1"
-  cluster    = google_container_cluster.my-gke-cluster.name
-  node_count = 1
+  cluster    = google_container_cluster.gke-cluster.name
+  node_count = 2
 
   node_config {
     preemptible  = true
@@ -83,6 +70,14 @@ resource "google_service_account" "cluster_account" {
   display_name = "Service Account"
 }
 
+resource "google_project_iam_binding" "iam" {
+ project = "iti-1-366311"
+ role = "roles/container.admin"
+ 
+ members = [
+ "serviceAccount:${google_service_account.cluster_account.email}",
+ ]
+}
 # resource "google_service_account_key" "mykey" {
 #   service_account_id = google_service_account.cluster_account.name
 # }

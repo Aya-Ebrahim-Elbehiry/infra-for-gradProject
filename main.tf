@@ -24,20 +24,20 @@ resource "google_compute_subnetwork" "management-sub" {
 
 ############## private subnet #############
 
-resource "google_compute_subnetwork" "restricted-sub" {
-    name = "restricted-sub"
+resource "google_compute_subnetwork" "cluster-sub" {
+    name = "cluster-sub"
     ip_cidr_range = "10.0.99.0/24"
     region =  "us-central1"
     network = google_compute_network.main-network.id 
 
     secondary_ip_range {
        range_name    = "services-range"
-       ip_cidr_range = "10.10.10.0/24"
+       ip_cidr_range = "192.168.10.0/24"
     }
 
     secondary_ip_range {
        range_name    = "pod-range"
-       ip_cidr_range = "10.11.4.0/22"
+       ip_cidr_range = "192.168.20.0/24"
     }
 
 }
@@ -52,6 +52,22 @@ resource "google_compute_router" "router" {
     bgp {
         asn = 64514
         advertise_mode = "CUSTOM"
+        advertised_groups = ["ALL_SUBNETS"]
+    }
+}
+
+ #################### router 2 ##########
+
+
+resource "google_compute_router" "router-2" {
+
+    name = "router-2"
+    region = "us-central1"
+    network = google_compute_network.main-network.id
+    bgp {
+        asn = 64514
+        advertise_mode = "CUSTOM"
+        advertised_groups = ["ALL_SUBNETS"]
     }
 }
 
@@ -76,3 +92,17 @@ resource "google_compute_router_nat" "nat" {
    # nat_ips = [google_compute_address.nat.self_link]
 }
 
+resource "google_compute_router_nat" "cluster-nat" {
+    name = "nat"
+    router = google_compute_router.router-2.name
+    region = "us-central1"
+
+    source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+    nat_ip_allocate_option = "AUTO_ONLY"
+
+    subnetwork {
+        name = "cluster-sub"
+        source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+
+    }
+}
